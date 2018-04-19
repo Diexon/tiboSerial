@@ -2,3 +2,4 @@
 *.a
 *~
 *.so
+/utils/led-image-viewer
