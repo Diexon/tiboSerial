@@ -42,7 +42,7 @@
 #include <Magick++.h>
 #include <magick/image.h>
 
-#include "serialReader.hpp"
+#include "serialCom.hpp"
 
 using rgb_matrix::GPIO;
 using rgb_matrix::Canvas;
