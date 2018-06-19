@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <string>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
@@ -10,7 +12,7 @@ class serialReader
 
 		int speed , parity;
 
-		char *port;
+		const char *port;
 
 		int fd;
 
@@ -56,14 +58,15 @@ class serialReader
 
 	public:
 
-		serialReader() : speed(0), parity(0), port('\0'), fd(0) { }
-
-		serialReader(int speedIn, int parityIn, char *portIn)
+		serialReader(int speedIn = 9600, 
+			std::string portIn = "/dev/ttyUSB0",
+			int parityIn = 0)
 		{
-			fd = open (portIn, O_RDWR | O_NOCTTY | O_SYNC);
-			speed = speedIn;
 			parity = parityIn;
-			port = portIn;
+			port = portIn.c_str();
+			fd = open (port, O_RDWR | O_NOCTTY | O_SYNC);
+			speed = speedIn;			
+			
 
 			set_interface_attribs (fd, speed, parity);
 		}
