@@ -6,7 +6,7 @@
 #include <termios.h>
 #include <unistd.h>
 
-class serialReader
+class serialCom
 {
 	private:
 
@@ -58,7 +58,7 @@ class serialReader
 
 	public:
 
-		serialReader(int speedIn = 9600, 
+		serialCom(int speedIn = 9600, 
 			std::string portIn = "/dev/ttyUSB0",
 			int parityIn = 0)
 		{

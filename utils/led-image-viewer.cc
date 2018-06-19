@@ -262,7 +262,7 @@ int main(int argc, char *argv[]) {
   bool do_center = false;
   bool do_shuffle = false;
 
-  serialReader srRead;
+  serialCom srCom;
 
   // We remember ImageParams for each image, which will change whenever
   // there is a flag modifying them. This map keeps track of filenames
