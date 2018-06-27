@@ -56,18 +56,48 @@ class serialCom
 		        return 0;
 		}
 
+		void set_blocking (int fd, int should_block)
+		{
+			struct termios tty;
+			memset (&tty, 0, sizeof tty);
+
+			if (tcgetattr (fd, &tty) != 0)
+			{
+					printf ("error %d from tggetattr", errno);
+					return;
+			}
+
+			tty.c_cc[VMIN]  = should_block ? 1 : 0;
+			tty.c_cc[VTIME] = 5;            // 0.5 seconds read timeout
+
+			if (tcsetattr (fd, TCSANOW, &tty) != 0){
+					printf ("error %d setting term attributes", errno);
+			}
+		}
+
 	public:
 
-		serialCom(int speedIn = 9600, 
+		serialCom(int speedIn = 115200, 
 			std::string portIn = "/dev/ttyUSB0",
 			int parityIn = 0)
 		{
 			parity = parityIn;
 			port = portIn.c_str();
 			fd = open (port, O_RDWR | O_NOCTTY | O_SYNC);
+			if (fd < 0)
+			{
+					printf ("error %d opening %s: %s", errno, portIn.c_str(), strerror (errno));
+					return;
+			}
 			speed = speedIn;			
 			
 
 			set_interface_attribs (fd, speed, parity);
+			set_blocking (fd, 0);
+		}
+
+		char* read(char* buf){
+			int n = ::read (fd, buf, sizeof buf); 
+			return buf;
 		}
 };

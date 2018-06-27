@@ -264,6 +264,9 @@ int main(int argc, char *argv[]) {
 
   serialCom srCom;
 
+  char buf[100];
+  srCom.read(buf);
+  printf("SERAIL: %s", buf);
   // We remember ImageParams for each image, which will change whenever
   // there is a flag modifying them. This map keeps track of filenames
   // and their image params (also for unrelated elements of argv[], but doesn't
