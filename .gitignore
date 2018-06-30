@@ -3,3 +3,4 @@
 *~
 *.so
 /utils/led-image-viewer
+.vscode/

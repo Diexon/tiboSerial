@@ -263,10 +263,18 @@ int main(int argc, char *argv[]) {
   bool do_shuffle = false;
 
   serialCom srCom;
+  for (int i = 1; i < 100; i++){
+    char buf[100];
+    if (srCom.readLine(buf)){
+      printf("SERIAL: %s", buf);
+    }
+    else{
+      perror("No serial");
+    }
+  }
+  
 
-  char buf[100];
-  srCom.read(buf);
-  printf("SERAIL: %s", buf);
+  return 0;
   // We remember ImageParams for each image, which will change whenever
   // there is a flag modifying them. This map keeps track of filenames
   // and their image params (also for unrelated elements of argv[], but doesn't

@@ -10,13 +10,15 @@ class serialCom
 {
 	private:
 
-		int speed , parity;
+		speed_t speed;
+		
+		int parity;
 
 		const char *port;
 
 		int fd;
 
-		int set_interface_attribs (int fdSt, int speedSt, int paritySt)
+		int set_interface_attribs (void)
 		{
 		        struct termios tty;
 		        memset (&tty, 0, sizeof tty);
@@ -37,7 +39,7 @@ class serialCom
 		                                        // no canonical processing
 		        tty.c_oflag = 0;                // no remapping, no delays
 		        tty.c_cc[VMIN]  = 0;            // read doesn't block
-		        tty.c_cc[VTIME] = 5;            // 0.5 seconds read timeout
+		        tty.c_cc[VTIME] = 1;            // 0.5 seconds read timeout
 
 		        tty.c_iflag &= ~(IXON | IXOFF | IXANY); // shut off xon/xoff ctrl
 
@@ -53,51 +55,43 @@ class serialCom
 		                printf ("error %d from tcsetattr", errno);
 		                return -1;
 		        }
-		        return 0;
-		}
 
-		void set_blocking (int fd, int should_block)
-		{
-			struct termios tty;
-			memset (&tty, 0, sizeof tty);
-
-			if (tcgetattr (fd, &tty) != 0)
-			{
-					printf ("error %d from tggetattr", errno);
-					return;
-			}
-
-			tty.c_cc[VMIN]  = should_block ? 1 : 0;
-			tty.c_cc[VTIME] = 5;            // 0.5 seconds read timeout
-
-			if (tcsetattr (fd, TCSANOW, &tty) != 0){
-					printf ("error %d setting term attributes", errno);
-			}
+				//Wait for communication to be alive
+				char tempMsg[1]; 
+				for (int wait = 0; wait < 1000; wait++){
+					if(read (fd, tempMsg, 1)) return 0;
+				}
+				
+		        return -1;
 		}
 
 	public:
 
-		serialCom(int speedIn = 115200, 
+		serialCom(speed_t speedIn = B115200, 
 			std::string portIn = "/dev/ttyUSB0",
 			int parityIn = 0)
 		{
 			parity = parityIn;
 			port = portIn.c_str();
-			fd = open (port, O_RDWR | O_NOCTTY | O_SYNC);
+			fd = open (port, O_RDWR| O_NOCTTY);
+			//fd = open (port, O_RDWR | O_NOCTTY | O_SYNC);
 			if (fd < 0)
 			{
 					printf ("error %d opening %s: %s", errno, portIn.c_str(), strerror (errno));
 					return;
 			}
-			speed = speedIn;			
-			
+			speed = speedIn;		
 
-			set_interface_attribs (fd, speed, parity);
-			set_blocking (fd, 0);
+			set_interface_attribs ();
 		}
 
-		char* read(char* buf){
-			int n = ::read (fd, buf, sizeof buf); 
-			return buf;
+		int readLine(char* buf){
+			char inter[100];
+			memset(inter,'\0',sizeof inter);
+			int stat = read (fd, inter, sizeof inter);
+
+			buf = inter;
+			return stat;
+
 		}
 };
