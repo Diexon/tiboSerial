@@ -10,13 +10,12 @@ class serialCom
 {
 	private:
 
-		speed_t speed;
-		
+		speed_t speed;		
 		int parity;
-
 		const char *port;
-
+		cc_t block, timeout;
 		int fd;
+
 
 		int set_interface_attribs (void)
 		{
@@ -38,8 +37,8 @@ class serialCom
 		        tty.c_lflag = 0;                // no signaling chars, no echo,
 		                                        // no canonical processing
 		        tty.c_oflag = 0;                // no remapping, no delays
-		        tty.c_cc[VMIN]  = 0;            // read doesn't block
-		        tty.c_cc[VTIME] = 1;            // 0.5 seconds read timeout
+		        tty.c_cc[VMIN]  = block;            // read doesn't block
+		        tty.c_cc[VTIME] = timeout;            // 0.5 seconds read timeout
 
 		        tty.c_iflag &= ~(IXON | IXOFF | IXANY); // shut off xon/xoff ctrl
 
@@ -56,33 +55,48 @@ class serialCom
 		                return -1;
 		        }
 
-				//Wait for communication to be alive
-				char tempMsg[1]; 
-				for (int wait = 0; wait < 1000; wait++){
-					if(read (fd, tempMsg, 1)) return 0;
-				}
-				
-		        return -1;
+				return 0;
 		}
 
 	public:
 
 		serialCom(speed_t speedIn = B115200, 
 			std::string portIn = "/dev/ttyUSB0",
-			int parityIn = 0)
+			int parityIn = 0,
+			cc_t blockIn = 0,
+			cc_t timeoutIn = 1
+			):
+			speed(speedIn),
+			parity(parityIn),
+			port(portIn.c_str()),			
+			block(blockIn),
+			timeout(timeoutIn)
 		{
-			parity = parityIn;
-			port = portIn.c_str();
 			fd = open (port, O_RDWR| O_NOCTTY);
 			//fd = open (port, O_RDWR | O_NOCTTY | O_SYNC);
 			if (fd < 0)
 			{
-					printf ("error %d opening %s: %s", errno, portIn.c_str(), strerror (errno));
-					return;
-			}
-			speed = speedIn;		
-
+				printf ("error %d opening %s: %s", errno, port, strerror (errno));
+				return;
+			}					
 			set_interface_attribs ();
+		}
+
+		//! This method is specific for arduino connection. Waiting to boot.
+		/*!
+		\param loop loops to read.
+		\param sucessRead Threshold .
+		\return True if read succeeds		
+		*/	
+		bool waitConnection(int loops, int sucessRead){
+			int reads = 0;
+			char buff[1];
+			printf("Waiting serial to boot...\n");
+			for (int n = 0; n < loops; n++){
+				reads = reads + read (fd, buff, 1);
+				if (reads >= sucessRead) return true;
+			}
+			return false;
 		}
 
 		int readLine(char* buf){

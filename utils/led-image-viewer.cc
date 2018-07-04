@@ -263,7 +263,13 @@ int main(int argc, char *argv[]) {
   bool do_shuffle = false;
 
   serialCom srCom;
-  for (int i = 1; i < 100; i++){
+
+  if (!srCom.waitConnection(1000, 6)){
+    fprintf(stderr, "No boot reached. Killing.\n");
+    return 1;
+  }
+
+  for (int i = 1; i < 500; i++){
     char buf[100];
     if (srCom.readLine(buf)){
       printf("SERIAL: %s", buf);
@@ -272,7 +278,7 @@ int main(int argc, char *argv[]) {
       perror("No serial");
     }
   }
-  
+
 
   return 0;
   // We remember ImageParams for each image, which will change whenever
