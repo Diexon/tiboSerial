@@ -269,18 +269,16 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  for (int i = 1; i < 500; i++){
+  for (int i = 1; i < 10; i++){
     char buf[100];
     if (srCom.readLine(buf)){
-      printf("SERIAL: %s", buf);
+      printf("SERIAL: %s Size: %d \n", buf, sizeof buf);
     }
     else{
       perror("No serial");
     }
   }
 
-
-  return 0;
   // We remember ImageParams for each image, which will change whenever
   // there is a flag modifying them. This map keeps track of filenames
   // and their image params (also for unrelated elements of argv[], but doesn't
