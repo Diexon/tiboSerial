@@ -55,16 +55,19 @@ class serialCom
 			tty.c_cflag |= CREAD | CLOCAL;
 			/* disable input/output flow control, disable restart chars */
 			tty.c_iflag &= ~(IXON | IXOFF | IXANY);
-			/* disable canonical input, disable echo,
-			disable visually erase chars,
+			/* enable canonical input*/
+			tty.c_lflag &= ICANON;
+			/*disable echo, disable visually erase chars,
 			disable terminal-generated signals */
-			tty.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+			tty.c_lflag &= ~(ECHO | ECHOE | ISIG);
 			/* disable output processing */
 			tty.c_oflag &= ~OPOST;
 
 			tty.c_cc[VMIN]  = block;            // read doesn't block
 			tty.c_cc[VTIME] = timeout;            // seconds read timeout
-			
+			// For canonical
+			tty.c_cc[VEOL] = '\n';
+
 			if (tcsetattr (fd, TCSANOW, &tty) != 0)
 			{
 				printf ("error %d from tcsetattr", errno);
@@ -89,6 +92,13 @@ class serialCom
 		}
 
 		int readLine(char* buf){
-			return read (fd, buf, maxLineSize);
+			int stat = read (fd, buf, maxLineSize);
+			if (stat < 0) {
+    			/* No content */
+ 			}
+			else{
+				buf[stat - 1] = '\0'; //erase the new line
+			}
+			return stat;
 		}
 };

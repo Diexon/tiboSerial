@@ -269,10 +269,11 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  for (int i = 1; i < 10; i++){
+  for (int i = 1; i < 100; i++){
     char buf[100];
-    if (srCom.readLine(buf)){
-      printf("SERIAL: %s Size: %d \n", buf, sizeof buf);
+    int stat = srCom.readLine(buf);
+    if (stat > 0){
+      printf("SERIAL: %s Size: %d \n", buf, stat);
     }
     else{
       perror("No serial");
