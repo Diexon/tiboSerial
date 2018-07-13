@@ -261,7 +261,7 @@ int main(int argc, char *argv[]) {
   bool do_forever = false;
   bool do_center = false;
   bool do_shuffle = false;
-
+/*
   serialCom srCom;
 
   if (!srCom.waitConnection(1000, 6)){
@@ -279,7 +279,7 @@ int main(int argc, char *argv[]) {
       perror("No serial");
     }
   }
-
+*/
   // We remember ImageParams for each image, which will change whenever
   // there is a flag modifying them. This map keeps track of filenames
   // and their image params (also for unrelated elements of argv[], but doesn't
@@ -400,7 +400,7 @@ int main(int argc, char *argv[]) {
   fprintf(stderr, "Loading %d files...\n", argc - optind);
   // Preparing all the images beforehand as the Pi might be too slow to
   // be quickly switching between these. So preprocess.
-  std::vector<FileInfo*> file_imgs;
+  std::map<const void *, FileInfo*> file_imgs;
   for (int imgarg = optind; imgarg < argc; ++imgarg) {
     const char *filename = argv[imgarg];
     FileInfo *file_info = NULL;
@@ -450,7 +450,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (file_info) {
-      file_imgs.push_back(file_info);
+      file_imgs[filename] = file_info;
     } else {
       fprintf(stderr, "%s skipped: Unable to open (%s)\n",
               filename, err_msg.c_str());
@@ -479,10 +479,10 @@ int main(int argc, char *argv[]) {
     return 1;
   } else if (file_imgs.size() == 1) {
     // Single image: show forever.
-    file_imgs[0]->params.wait_ms = distant_future;
+    file_imgs.begin()->second->params.wait_ms = distant_future;
   } else {
-    for (size_t i = 0; i < file_imgs.size(); ++i) {
-      ImageParams &params = file_imgs[i]->params;
+    for (std::map<const void *, FileInfo*>::iterator it = file_imgs.begin(); it!=file_imgs.end(); ++it) {
+      ImageParams &params = it->second->params;
       // Forever animation ? Set to loop only once, otherwise that animation
       // would just run forever, stopping all the images after it.
       if (params.loops < 0 && params.anim_duration_ms == distant_future) {
@@ -501,8 +501,8 @@ int main(int argc, char *argv[]) {
     if (do_shuffle) {
       std::random_shuffle(file_imgs.begin(), file_imgs.end());
     }
-    for (size_t i = 0; i < file_imgs.size() && !interrupt_received; ++i) {
-      DisplayAnimation(file_imgs[i], matrix, offscreen_canvas, vsync_multiple);
+    for (std::map<const void *, FileInfo*>::iterator it = file_imgs.begin(); it!=file_imgs.end() && !interrupt_received; ++it) {
+      DisplayAnimation(it->second, matrix, offscreen_canvas, vsync_multiple);
     }
   } while (do_forever && !interrupt_received);
 
