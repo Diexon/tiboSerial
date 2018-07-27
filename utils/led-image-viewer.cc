@@ -261,6 +261,8 @@ int main(int argc, char *argv[]) {
   bool do_forever = false;
   bool do_center = false;
   bool do_shuffle = false;
+
+//TODO: refina implementation of constructor and init for serial
 /*
   serialCom srCom;
 
@@ -499,9 +501,10 @@ int main(int argc, char *argv[]) {
 
   do {
     if (do_shuffle) {
-      std::random_shuffle(file_imgs.begin(), file_imgs.end());
+      //std::random_shuffle(file_imgs.begin(), file_imgs.end()); // TODO: reimplement random for map
     }
     for (std::map<const void *, FileInfo*>::iterator it = file_imgs.begin(); it!=file_imgs.end() && !interrupt_received; ++it) {
+      printf("Displaying image: %s\n", static_cast<const char *>(it->first));
       DisplayAnimation(it->second, matrix, offscreen_canvas, vsync_multiple);
     }
   } while (do_forever && !interrupt_received);
