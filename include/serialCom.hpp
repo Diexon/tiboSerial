@@ -10,9 +10,6 @@ class serialCom
 	private:
 
 		// Serial connection parameters
-		speed_t speed;		
-		const char *port;
-		cc_t block, timeout;
 		int fd;
 		static const int maxLineSize = 4000;
 
@@ -34,18 +31,23 @@ class serialCom
 		bool serialActive;
 		static const int imgValid = 5; // Size of image name to be valid
 		char * currentImg;
+		bool changeImg;
 
 	public:
 
-		serialCom():serialActive(false){}
+		serialCom():serialActive(false),
+					changeImg(false){}
 
 		bool init(int speedIn = 115200, 
-			std::string portIn = "/dev/ttyUSB0",
-			int parityIn = 0,
-			cc_t blockIn = 0,
-			cc_t timeoutIn = 1
+			std::string port = "/dev/ttyUSB0",
+			cc_t block = 0,
+			cc_t timeout = 1
 			)
-		{									
+		{	
+			speed_t speed;
+
+			serialActive = true;
+
 			auto it = baudRates.find(speedIn);
 
 			if (it != baudRates.end())
@@ -56,15 +58,11 @@ class serialCom
 				printf ("error: no valid baud rate");
 				return 1;
 			}
-			
-			port = portIn.c_str();
-			block = blockIn;
-			timeout = timeoutIn;
 
-			fd = open (port, O_RDWR | O_NOCTTY | O_SYNC);
+			fd = open (port.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
 			if (fd < 0)
 			{
-				printf ("error %d opening %s: %s", errno, port, strerror (errno));
+				printf ("error %d opening %s: %s", errno, port.c_str(), strerror (errno));
 				return 1;
 			}					
 			
@@ -114,14 +112,7 @@ class serialCom
 				fprintf(stderr, "error: No boot from Arduino reached.\n");
 				return 1;
 			}
-/*
-			// Read current image to display
-			if (readLine(currentImg) <= 0)
-			{
-				fprintf(stderr, "error: Not able to read line from serial.\n");
-				return 1;
-			}
-*/
+
 			return 0;
 
 		}
@@ -130,6 +121,7 @@ class serialCom
 			return currentImg; 
 		}
 
+	private:
 		//! This method is specific for arduino connection. Waiting to boot.
 		/*!
 		\param loop loops to read.
