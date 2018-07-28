@@ -262,15 +262,17 @@ int main(int argc, char *argv[]) {
   bool do_center = false;
   bool do_shuffle = false;
 
-//TODO: refina implementation of constructor and init for serial
-/*
   serialCom srCom;
 
-  if (!srCom.waitConnection(1000, 6)){
-    fprintf(stderr, "No boot reached. Killing.\n");
+  if(srCom.init())
+  {
+    fprintf(stderr, "Not able to init serial\n");
     return 1;
   }
-
+  
+  
+  printf("StartImage: %s \n", srCom.getImg());
+  
   for (int i = 1; i < 100; i++){
     char buf[100];
     int stat = srCom.readLine(buf);
@@ -280,8 +282,9 @@ int main(int argc, char *argv[]) {
     else{
       perror("No serial");
     }
+    SleepMillis(500);
   }
-*/
+
   // We remember ImageParams for each image, which will change whenever
   // there is a flag modifying them. This map keeps track of filenames
   // and their image params (also for unrelated elements of argv[], but doesn't
@@ -403,6 +406,8 @@ int main(int argc, char *argv[]) {
   // Preparing all the images beforehand as the Pi might be too slow to
   // be quickly switching between these. So preprocess.
   std::map<const void *, FileInfo*> file_imgs;
+  using fileIt = std::map<const void *, FileInfo*>::iterator;
+
   for (int imgarg = optind; imgarg < argc; ++imgarg) {
     const char *filename = argv[imgarg];
     FileInfo *file_info = NULL;
@@ -483,7 +488,7 @@ int main(int argc, char *argv[]) {
     // Single image: show forever.
     file_imgs.begin()->second->params.wait_ms = distant_future;
   } else {
-    for (std::map<const void *, FileInfo*>::iterator it = file_imgs.begin(); it!=file_imgs.end(); ++it) {
+    for (fileIt it = file_imgs.begin(); it!=file_imgs.end(); ++it) {
       ImageParams &params = it->second->params;
       // Forever animation ? Set to loop only once, otherwise that animation
       // would just run forever, stopping all the images after it.
@@ -503,7 +508,7 @@ int main(int argc, char *argv[]) {
     if (do_shuffle) {
       //std::random_shuffle(file_imgs.begin(), file_imgs.end()); // TODO: reimplement random for map
     }
-    for (std::map<const void *, FileInfo*>::iterator it = file_imgs.begin(); it!=file_imgs.end() && !interrupt_received; ++it) {
+    for (fileIt it = file_imgs.begin(); it!=file_imgs.end() && !interrupt_received; ++it) {
       printf("Displaying image: %s\n", static_cast<const char *>(it->first));
       DisplayAnimation(it->second, matrix, offscreen_canvas, vsync_multiple);
     }

@@ -9,36 +9,70 @@ class serialCom
 {
 	private:
 
+		// Serial connection parameters
 		speed_t speed;		
 		const char *port;
 		cc_t block, timeout;
 		int fd;
-		const int maxLineSize = 4000;
+		static const int maxLineSize = 4000;
+
+		std::map<int, int> baudRates{{300, B300},
+									{600, B600},
+									{1200, B1200},
+									{2400, B2400},
+									{4800, B4800},
+									{9600, B9600},
+									{19200, B19200},
+									{38400, B38400},
+									{57600, B57600},
+									{115200, B115200}};
+
+		// Arduino booting parameters
+		static const int loops = 1000, sucessRead = 6;
+
+		// Serial control
+		bool serialActive;
+		char * currentImg;
 
 	public:
 
-		serialCom(speed_t speedIn = B115200, 
+		serialCom():serialActive(false){}
+
+		bool init(int speedIn = 115200, 
 			std::string portIn = "/dev/ttyUSB0",
 			int parityIn = 0,
 			cc_t blockIn = 0,
 			cc_t timeoutIn = 1
-			):
-			speed(speedIn),
-			port(portIn.c_str()),			
-			block(blockIn),
-			timeout(timeoutIn)
-		{
+			)
+		{									
+			auto it = baudRates.find(speedIn);
+
+			if (it != baudRates.end())
+			{
+				speed = it->second;
+			}else
+			{	
+				printf ("error: no valid baud rate");
+				return 1;
+			}
+			
+			port = portIn.c_str();
+			block = blockIn;
+			timeout = timeoutIn;
+
 			fd = open (port, O_RDWR | O_NOCTTY | O_SYNC);
 			if (fd < 0)
 			{
 				printf ("error %d opening %s: %s", errno, port, strerror (errno));
+				return 1;
 			}					
 			
 			struct termios tty;
 			memset (&tty, 0, sizeof tty);
 			if (tcgetattr (fd, &tty) != 0)
 			{
-					printf ("error %d from tcgetattr", errno);
+				printf ("error %d from tcgetattr", errno);
+				return 1;
 			}
 
 			cfsetospeed (&tty, speed);
@@ -71,7 +105,28 @@ class serialCom
 			if (tcsetattr (fd, TCSANOW, &tty) != 0)
 			{
 				printf ("error %d from tcsetattr", errno);
+				return 1;
 			}
+
+			// Wait booting after initializing
+			if (!waitConnection()){
+				fprintf(stderr, "error: No boot from Arduino reached.\n");
+				return 1;
+			}
+/*
+			// Read current image to display
+			if (readLine(currentImg) <= 0)
+			{
+				fprintf(stderr, "error: Not able to read line from serial.\n");
+				return 1;
+			}
+*/
+			return 0;
+
+		}
+
+		char * getImg(){
+			return currentImg; 
 		}
 
 		//! This method is specific for arduino connection. Waiting to boot.
@@ -80,7 +135,7 @@ class serialCom
 		\param sucessRead Threshold .
 		\return True if read succeeds		
 		*/	
-		bool waitConnection(int loops, int sucessRead){
+		bool waitConnection(){
 			int reads = 0;
 			char buff[1];
 			printf("Waiting serial to boot...\n");
@@ -90,7 +145,11 @@ class serialCom
 			}
 			return false;
 		}
-
+		//! Read one line present in the serial bus
+		/*!
+		\param buf Buffer to fill with serial line
+		\return Read status		
+		*/	
 		int readLine(char* buf){
 			int stat = read (fd, buf, maxLineSize);
 			if (stat < 0) {
