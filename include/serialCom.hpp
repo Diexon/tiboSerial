@@ -30,8 +30,9 @@ class serialCom
 		// Arduino booting parameters
 		static const int loops = 1000, sucessRead = 6;
 
-		// Serial control
+		// Serial control		
 		bool serialActive;
+		static const int imgValid = 5; // Size of image name to be valid
 		char * currentImg;
 
 	public:
@@ -137,23 +138,30 @@ class serialCom
 		*/	
 		bool waitConnection(){
 			int reads = 0;
-			char buff[1];
+			char buff[100];
 			printf("Waiting serial to boot...\n");
 			for (int n = 0; n < loops; n++){
-				reads = reads + read (fd, buff, 1);
-				if (reads >= sucessRead) return true;
+				reads = readLine(buff);
+				tcflush(fd, TCIFLUSH);
+				if (reads > imgValid) 
+				{
+					currentImg = buff; // Store first image received
+					return true;
+				}
 			}
 			return false;
 		}
 		//! Read one line present in the serial bus
 		/*!
 		\param buf Buffer to fill with serial line
-		\return Read status		
+		\return Read size of the string	
 		*/	
 		int readLine(char* buf){
 			int stat = read (fd, buf, maxLineSize);
-			if (stat < 0) {
-    			/* No content */
+			tcflush(fd, TCIFLUSH);
+			if (stat <= imgValid) {
+    			/* No content or content not valid */
+				return 0;
  			}
 			else{
 				buf[stat - 1] = '\0'; //erase the new line

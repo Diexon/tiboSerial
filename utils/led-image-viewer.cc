@@ -268,11 +268,11 @@ int main(int argc, char *argv[]) {
   {
     fprintf(stderr, "Not able to init serial\n");
     return 1;
-  }
-  
+  }  
   
   printf("StartImage: %s \n", srCom.getImg());
-  
+  //TODO: remove debug
+  /*
   for (int i = 1; i < 100; i++){
     char buf[100];
     int stat = srCom.readLine(buf);
@@ -282,9 +282,9 @@ int main(int argc, char *argv[]) {
     else{
       perror("No serial");
     }
-    SleepMillis(500);
+    SleepMillis(5);
   }
-
+*/
   // We remember ImageParams for each image, which will change whenever
   // there is a flag modifying them. This map keeps track of filenames
   // and their image params (also for unrelated elements of argv[], but doesn't
