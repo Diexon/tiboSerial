@@ -262,15 +262,15 @@ int main(int argc, char *argv[]) {
   bool do_center = false;
   bool do_shuffle = false;
 
-  serialCom srCom;
-
-  if(srCom.init())
+  //TODO: init on program option move down
+  if(!srCom.init(115200, "/dev/ttyUSB0"))
   {
+    do_forever = true; // By serial sucessful init, set repeatable cycle.
+  }else{
     fprintf(stderr, "Not able to init serial\n");
     return 1;
   }  
   
-  printf("StartImage: %s \n", srCom.getImg());
   //TODO: remove debug
   /*
   for (int i = 1; i < 100; i++){
@@ -505,12 +505,16 @@ int main(int argc, char *argv[]) {
   signal(SIGINT, InterruptHandler);
 
   do {
-    if (do_shuffle) {
-      //std::random_shuffle(file_imgs.begin(), file_imgs.end()); // TODO: reimplement random for map
-    }
-    for (fileIt it = file_imgs.begin(); it!=file_imgs.end() && !interrupt_received; ++it) {
-      printf("Displaying image: %s\n", static_cast<const char *>(it->first));
-      DisplayAnimation(it->second, matrix, offscreen_canvas, vsync_multiple);
+    if (srCom.getSerialActive()){      
+      printf("Displaying image: %s\n", srCom.getImg());
+      DisplayAnimation(file_imgs[srCom.getImg()], matrix, offscreen_canvas, vsync_multiple);
+    }else{
+      if (do_shuffle) {
+        //std::random_shuffle(file_imgs.begin(), file_imgs.end()); // TODO: reimplement random for map
+      }
+      for (fileIt it = file_imgs.begin(); it!=file_imgs.end() && !interrupt_received; ++it) {
+        DisplayAnimation(it->second, matrix, offscreen_canvas, vsync_multiple);
+      }
     }
   } while (do_forever && !interrupt_received);
 

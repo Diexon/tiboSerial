@@ -30,8 +30,16 @@ class serialCom
 		// Serial control		
 		bool serialActive;
 		static const int imgValid = 5; // Size of image name to be valid
+		static const int emptyRead = 5; // Limit for empty reads
+		static constexpr const char * stopMsg = "STOP";
 		char * currentImg;
-		bool changeImg;
+		bool changeImg;		
+		enum class cpStat : int {
+			newImg = 0,
+			equal,
+			empty,
+			stop
+		};
 
 	public:
 
@@ -42,11 +50,8 @@ class serialCom
 			std::string port = "/dev/ttyUSB0",
 			cc_t block = 0,
 			cc_t timeout = 1
-			)
-		{	
+			){	
 			speed_t speed;
-
-			serialActive = true;
 
 			auto it = baudRates.find(speedIn);
 
@@ -112,13 +117,50 @@ class serialCom
 				fprintf(stderr, "error: No boot from Arduino reached.\n");
 				return 1;
 			}
+			// Set activation to true if all steps were successful
+			serialActive = true;
 
 			return 0;
 
 		}
 
+		int checkNextImg(){
+			char * nextImg;
+			static int emptyReadCnt = 0;
+			if(readLine(nextImg) <= 0)
+			{
+				changeImg = false;
+				emptyReadCnt ++;
+				if(emptyReadCnt > emptyRead)
+				{
+					return static_cast<int>(cpStat::stop);
+				}
+				else
+				{
+					return static_cast<int>(cpStat::empty);
+				}
+			}
+			if (strcmp(currentImg, nextImg) == 0)
+			{
+				changeImg = false;
+				emptyReadCnt = 0;
+				return static_cast<int>(cpStat::equal);
+			}
+			else if (strcmp(currentImg, stopMsg) == 0)
+			{				
+				changeImg = false;
+				emptyReadCnt = 0;
+				return static_cast<int>(cpStat::stop);
+			}
+			
+		}
+
 		char * getImg(){
 			return currentImg; 
+		}
+
+		bool getSerialActive(){
+			return serialActive;
 		}
 
 	private:
@@ -161,3 +203,6 @@ class serialCom
 			return stat;
 		}
 };
+
+serialCom srCom;
+
