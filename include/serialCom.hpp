@@ -5,12 +5,14 @@
 #include <termios.h>
 #include <unistd.h>
 
+static const int STRING_SIZE = 100;
+
 class serialCom
 {
 	private:
 
 		// Serial connection parameters
-		int fd;
+		static int fd;
 		static const int maxLineSize = 4000;
 
 		std::map<int, int> baudRates{{300, B300},
@@ -25,26 +27,20 @@ class serialCom
 									{115200, B115200}};
 
 		// Arduino booting parameters
-		static const int loops = 1000, sucessRead = 6;
+		static const int loops = 1000;
+		static const int sucessRead = 6;
 
 		// Serial control		
-		bool serialActive;
+		static bool serialActive;
 		static const int imgValid = 5; // Size of image name to be valid
 		static const int emptyRead = 5; // Limit for empty reads
-		static constexpr const char * stopMsg = "STOP";
-		char * currentImg;
-		bool changeImg;		
-		enum class cpStat : int {
-			newImg = 0,
-			equal,
-			empty,
-			stop
-		};
+		static constexpr const char* stopMsg = "stop";
+		static char* currentImg;
 
 	public:
 
-		serialCom():serialActive(false),
-					changeImg(false){}
+		static bool changeImg;		
+		static bool stopSerial;				
 
 		bool init(int speedIn = 115200, 
 			std::string port = "/dev/ttyUSB0",
@@ -124,38 +120,39 @@ class serialCom
 
 		}
 
-		int checkNextImg(){
-			char * nextImg;
+		static void checkNextImg(){
+			if(serialActive) return; 
+			char nextImg[STRING_SIZE];
 			static int emptyReadCnt = 0;
-			if(readLine(nextImg) <= 0)
-			{
+			if(readLine(nextImg) <= 0){
 				changeImg = false;
 				emptyReadCnt ++;
-				if(emptyReadCnt > emptyRead)
-				{
-					return static_cast<int>(cpStat::stop);
+				if(emptyReadCnt > emptyRead){
+					changeImg = true;
+					stopSerial = true;
 				}
-				else
-				{
-					return static_cast<int>(cpStat::empty);
+				else{
+					// Do nothing
+					return;
 				}
 			}
-			if (strcmp(currentImg, nextImg) == 0)
-			{
+			if (strcmp(nextImg, currentImg) == 0){
 				changeImg = false;
-				emptyReadCnt = 0;
-				return static_cast<int>(cpStat::equal);
+				stopSerial = false;
+				emptyReadCnt = 0;				
 			}
-			else if (strcmp(currentImg, stopMsg) == 0)
-			{				
-				changeImg = false;
+			else if (strcmp(nextImg, stopMsg) == 0){				
+				changeImg = true;
+				stopSerial = true;
 				emptyReadCnt = 0;
-				return static_cast<int>(cpStat::stop);
+			}
+			else{
+				strcpy(currentImg, nextImg);
 			}
 			
 		}
 
-		char * getImg(){
+		char* getImg(){
 			return currentImg; 
 		}
 
@@ -172,14 +169,13 @@ class serialCom
 		*/	
 		bool waitConnection(){
 			int reads = 0;
-			char buff[100];
+			char buff[STRING_SIZE];
 			printf("Waiting serial to boot...\n");
 			for (int n = 0; n < loops; n++){
 				reads = readLine(buff);
 				tcflush(fd, TCIFLUSH);
-				if (reads > imgValid) 
-				{
-					currentImg = buff; // Store first image received
+				if (reads > imgValid) {
+					strcpy(currentImg, buff); // Store first image received
 					return true;
 				}
 			}
@@ -190,7 +186,7 @@ class serialCom
 		\param buf Buffer to fill with serial line
 		\return Read size of the string	
 		*/	
-		int readLine(char* buf){
+		static int readLine(char* buf){
 			int stat = read (fd, buf, maxLineSize);
 			tcflush(fd, TCIFLUSH);
 			if (stat <= imgValid) {
@@ -205,4 +201,8 @@ class serialCom
 };
 
 serialCom srCom;
-
+bool serialCom::serialActive{false};
+bool serialCom::changeImg{false};		
+bool serialCom::stopSerial{false};		
+char* serialCom::currentImg{'\0'};
+int serialCom::fd{0};

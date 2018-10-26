@@ -187,12 +187,17 @@ void DisplayAnimation(const FileInfo *file,
   const tmillis_t override_anim_delay = file->params.anim_delay_ms;
   for (int k = 0;
        (loops < 0 || k < loops)
+         && !serialCom::changeImg
          && !interrupt_received
          && GetTimeInMillis() < end_time_ms;
        ++k) {
     uint32_t delay_us = 0;
-    while (!interrupt_received && GetTimeInMillis() <= end_time_ms
-           && reader.GetNext(offscreen_canvas, &delay_us)) {
+    while (!serialCom::changeImg
+          && !interrupt_received 
+          && GetTimeInMillis() <= end_time_ms
+          && reader.GetNext(offscreen_canvas, &delay_us)) {
+      // Checking image change if serial control is activated
+      serialCom::checkNextImg();
       const tmillis_t anim_delay_ms =
         override_anim_delay >= 0 ? override_anim_delay : delay_us / 1000;
       const tmillis_t start_wait_ms = GetTimeInMillis();
@@ -266,6 +271,7 @@ int main(int argc, char *argv[]) {
   if(!srCom.init(115200, "/dev/ttyUSB0"))
   {
     do_forever = true; // By serial sucessful init, set repeatable cycle.
+    printf("Serial booted OK with Image: %s\n",srCom.getImg());
   }else{
     fprintf(stderr, "Not able to init serial\n");
     return 1;
@@ -488,7 +494,9 @@ int main(int argc, char *argv[]) {
     // Single image: show forever.
     file_imgs.begin()->second->params.wait_ms = distant_future;
   } else {
+    printf("Images loaded\n");
     for (fileIt it = file_imgs.begin(); it!=file_imgs.end(); ++it) {
+      printf("%s\n", static_cast<const char*>(it->first));
       ImageParams &params = it->second->params;
       // Forever animation ? Set to loop only once, otherwise that animation
       // would just run forever, stopping all the images after it.
@@ -505,9 +513,16 @@ int main(int argc, char *argv[]) {
   signal(SIGINT, InterruptHandler);
 
   do {
-    if (srCom.getSerialActive()){      
-      printf("Displaying image: %s\n", srCom.getImg());
-      DisplayAnimation(file_imgs[srCom.getImg()], matrix, offscreen_canvas, vsync_multiple);
+    if (srCom.getSerialActive()){            
+      try {
+        printf("Displaying image: %s\n", srCom.getImg());
+        FileInfo * displayImage = file_imgs[srCom.getImg()];
+        DisplayAnimation(displayImage, matrix, offscreen_canvas, vsync_multiple);
+      } 
+      catch (const std::exception& e) {
+        fprintf(stderr, "Not image in the list found.\n");
+        return 0;
+      }
     }else{
       if (do_shuffle) {
         //std::random_shuffle(file_imgs.begin(), file_imgs.end()); // TODO: reimplement random for map
@@ -516,7 +531,7 @@ int main(int argc, char *argv[]) {
         DisplayAnimation(it->second, matrix, offscreen_canvas, vsync_multiple);
       }
     }
-  } while (do_forever && !interrupt_received);
+  } while (do_forever && !interrupt_received && !serialCom::stopSerial);
 
   if (interrupt_received) {
     fprintf(stderr, "Caught signal. Exiting.\n");
