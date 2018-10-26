@@ -35,7 +35,7 @@ class serialCom
 		static const int imgValid = 5; // Size of image name to be valid
 		static const int emptyRead = 5; // Limit for empty reads
 		static constexpr const char* stopMsg = "stop";
-		static char* currentImg;
+		static char currentImg[];
 
 	public:
 
@@ -204,5 +204,5 @@ serialCom srCom;
 bool serialCom::serialActive{false};
 bool serialCom::changeImg{false};		
 bool serialCom::stopSerial{false};		
-char* serialCom::currentImg{'\0'};
+char serialCom::currentImg[STRING_SIZE];
 int serialCom::fd{0};
