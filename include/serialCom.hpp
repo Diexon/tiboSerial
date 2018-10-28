@@ -33,7 +33,7 @@ class serialCom
 		// Serial control		
 		static bool serialActive;
 		static const int imgValid = 5; // Size of image name to be valid
-		static const int emptyRead = 5; // Limit for empty reads
+		static const int emptyRead = 5000; // Limit for empty reads
 		static constexpr const char* stopMsg = "stop";
 		static char currentImg[];
 
@@ -121,7 +121,7 @@ class serialCom
 		}
 
 		static void checkNextImg(){
-			if(serialActive) return; 
+			if(!serialActive) return; 
 			char nextImg[STRING_SIZE];
 			static int emptyReadCnt = 0;
 			if(readLine(nextImg) <= 0){
@@ -152,8 +152,8 @@ class serialCom
 			
 		}
 
-		char* getImg(){
-			return currentImg; 
+		std::string getImg(){
+			return std::string{currentImg}; 
 		}
 
 		bool getSerialActive(){
@@ -186,6 +186,7 @@ class serialCom
 		\param buf Buffer to fill with serial line
 		\return Read size of the string	
 		*/	
+	public:
 		static int readLine(char* buf){
 			int stat = read (fd, buf, maxLineSize);
 			tcflush(fd, TCIFLUSH);
@@ -196,6 +197,7 @@ class serialCom
 			else{
 				buf[stat - 1] = '\0'; //erase the new line
 			}
+			printf("***READ: %s\n",buf);
 			return stat;
 		}
 };

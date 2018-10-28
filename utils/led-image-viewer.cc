@@ -232,6 +232,7 @@ static int usage(const char *progname) {
           "\t-f                        : "
           "Forever cycle through the list of files on the command line.\n"
           "\t-s                        : If multiple images are given: shuffle.\n"
+          "\t-S                        : Enable serial control to 115200 bd.\n"
           "\nDisplay Options:\n"
           "\t-V<vsync-multiple>        : Expert: Only do frame vsync-swaps on multiples of refresh (default: 1)\n"
           );
@@ -266,31 +267,41 @@ int main(int argc, char *argv[]) {
   bool do_forever = false;
   bool do_center = false;
   bool do_shuffle = false;
-
-  //TODO: init on program option move down
-  if(!srCom.init(115200, "/dev/ttyUSB0"))
-  {
-    do_forever = true; // By serial sucessful init, set repeatable cycle.
-    printf("Serial booted OK with Image: %s\n",srCom.getImg());
-  }else{
-    fprintf(stderr, "Not able to init serial\n");
-    return 1;
-  }  
+  bool serail_control = false;
   
   //TODO: remove debug
-  /*
-  for (int i = 1; i < 100; i++){
-    char buf[100];
-    int stat = srCom.readLine(buf);
-    if (stat > 0){
-      printf("SERIAL: %s Size: %d \n", buf, stat);
-    }
-    else{
-      perror("No serial");
-    }
-    SleepMillis(5);
-  }
-*/
+//   if(!srCom.init(115200, "/dev/ttyUSB0"))
+//     {
+//       printf("Serial booted OK with Image: %s\n",srCom.getImg().c_str());
+//     }else{
+//       fprintf(stderr, "Not able to init serial\n");
+//       return 1;
+//     }
+//   for (int i = 1; i < 100; i++){
+//     char buf[100];
+//     int stat = srCom.readLine(buf);
+//     if (stat > 0){
+//       printf("SERIAL: %s Size: %d \n", buf, stat);
+//     }
+//     else{
+//       perror("No serial");
+//     }
+//     SleepMillis(5);
+//   }
+//   printf("********OTHER CYCLE********\n");
+//   SleepMillis(1000);
+//   for (int i = 1; i < 100; i++){
+//     char buf[100];
+//     int stat = srCom.readLine(buf);
+//     if (stat > 0){
+//       printf("SERIAL: %s Size: %d \n", buf, stat);
+//     }
+//     else{
+//       perror("No serial");
+//     }
+//     SleepMillis(5);
+//   }
+// return 0;
   // We remember ImageParams for each image, which will change whenever
   // there is a flag modifying them. This map keeps track of filenames
   // and their image params (also for unrelated elements of argv[], but doesn't
@@ -309,7 +320,7 @@ int main(int argc, char *argv[]) {
   const char *stream_output = NULL;
 
   int opt;
-  while ((opt = getopt(argc, argv, "w:t:l:fr:c:P:LhCR:sO:V:D:")) != -1) {
+  while ((opt = getopt(argc, argv, "w:t:l:fr:c:P:LhCR:sO:SO:V:D:")) != -1) {
     switch (opt) {
     case 'w':
       img_param.wait_ms = roundf(atof(optarg) * 1000.0f);
@@ -361,6 +372,10 @@ int main(int argc, char *argv[]) {
       vsync_multiple = atoi(optarg);
       if (vsync_multiple < 1) vsync_multiple = 1;
       break;
+    case 'S':
+      do_forever = true;
+      serail_control = true;
+      break;
     case 'h':
     default:
       return usage(argv[0]);
@@ -411,8 +426,8 @@ int main(int argc, char *argv[]) {
   fprintf(stderr, "Loading %d files...\n", argc - optind);
   // Preparing all the images beforehand as the Pi might be too slow to
   // be quickly switching between these. So preprocess.
-  std::map<const void *, FileInfo*> file_imgs;
-  using fileIt = std::map<const void *, FileInfo*>::iterator;
+  std::map<std::string, FileInfo*> file_imgs;
+  using fileIt = std::map<std::string, FileInfo*>::iterator;
 
   for (int imgarg = optind; imgarg < argc; ++imgarg) {
     const char *filename = argv[imgarg];
@@ -463,7 +478,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (file_info) {
-      file_imgs[filename] = file_info;
+      file_imgs[std::string{filename}] = file_info;
     } else {
       fprintf(stderr, "%s skipped: Unable to open (%s)\n",
               filename, err_msg.c_str());
@@ -496,7 +511,7 @@ int main(int argc, char *argv[]) {
   } else {
     printf("Images loaded\n");
     for (fileIt it = file_imgs.begin(); it!=file_imgs.end(); ++it) {
-      printf("%s\n", static_cast<const char*>(it->first));
+      printf("%s\n", it->first.c_str());
       ImageParams &params = it->second->params;
       // Forever animation ? Set to loop only once, otherwise that animation
       // would just run forever, stopping all the images after it.
@@ -509,15 +524,28 @@ int main(int argc, char *argv[]) {
   fprintf(stderr, "Loading took %.3fs; now: Display.\n",
           (GetTimeInMillis() - start_load) / 1000.0);
 
+  // Init serial control
+
+  if(serail_control){
+    if(!srCom.init(115200, "/dev/ttyUSB0"))
+    {
+      printf("Serial booted OK with Image: %s\n",srCom.getImg().c_str());
+    }else{
+      fprintf(stderr, "Not able to init serial\n");
+      return 1;
+    }
+  }
+
   signal(SIGTERM, InterruptHandler);
   signal(SIGINT, InterruptHandler);
 
   do {
     if (srCom.getSerialActive()){            
       try {
-        printf("Displaying image: %s\n", srCom.getImg());
-        FileInfo * displayImage = file_imgs[srCom.getImg()];
+        printf("Displaying image: %s\n", srCom.getImg().c_str());
+        FileInfo * displayImage = file_imgs.at(srCom.getImg());        
         DisplayAnimation(displayImage, matrix, offscreen_canvas, vsync_multiple);
+        serialCom::changeImg = false;
       } 
       catch (const std::exception& e) {
         fprintf(stderr, "Not image in the list found.\n");
