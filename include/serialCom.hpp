@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <map>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
@@ -11,11 +12,31 @@ class serialCom
 {
 	private:
 
+		// Arduino booting parameters
+		const int loops;
+		const int sucessRead;
+
 		// Serial connection parameters
 		static int fd;
-		static const int maxLineSize = 4000;
+		static const int maxLineSize;
+		const std::map<int, int> baudRates;
+		
+		// Serial control		
+		static bool serialActive;
+		static const int imgValid; // Size of image name to be valid
+		static const int emptyRead; // Limit for empty reads
+		static const char* stopMsg;
+		static char currentImg[];
 
-		std::map<int, int> baudRates{{300, B300},
+	public:
+
+		static bool changeImg;		
+		static bool stopSerial;				
+
+		serialCom() : 
+						loops(1000),
+						sucessRead(6),
+						baudRates({{300, B300},
 									{600, B600},
 									{1200, B1200},
 									{2400, B2400},
@@ -24,23 +45,9 @@ class serialCom
 									{19200, B19200},
 									{38400, B38400},
 									{57600, B57600},
-									{115200, B115200}};
-
-		// Arduino booting parameters
-		static const int loops = 1000;
-		static const int sucessRead = 6;
-
-		// Serial control		
-		static bool serialActive;
-		static const int imgValid = 5; // Size of image name to be valid
-		static const int emptyRead = 5000; // Limit for empty reads
-		static constexpr const char* stopMsg = "stop";
-		static char currentImg[];
-
-	public:
-
-		static bool changeImg;		
-		static bool stopSerial;				
+									{115200, B115200}}){
+										printf("HOLA: %d\n",sucessRead);
+									}
 
 		bool init(int speedIn = 115200, 
 			std::string port = "/dev/ttyUSB0",
@@ -202,7 +209,10 @@ class serialCom
 		}
 };
 
-serialCom srCom;
+const int serialCom::maxLineSize{4000};
+const char* serialCom::stopMsg{"stop"};
+const int serialCom::imgValid{5};
+const int serialCom::emptyRead{5000};
 bool serialCom::serialActive{false};
 bool serialCom::changeImg{false};		
 bool serialCom::stopSerial{false};		

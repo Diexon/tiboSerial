@@ -263,6 +263,9 @@ int main(int argc, char *argv[]) {
     return usage(argv[0]);
   }
 
+  // Create serial control aobject
+  serialCom srCom;
+
   int vsync_multiple = 1;
   bool do_forever = false;
   bool do_center = false;
