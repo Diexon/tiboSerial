@@ -14,8 +14,6 @@ class serialCom
 
 		// Arduino booting parameters
 		const int loops;
-		const int sucessRead;
-
 		// Serial connection parameters
 		static int fd;
 		static const int maxLineSize;
@@ -34,8 +32,7 @@ class serialCom
 		static bool stopSerial;				
 
 		serialCom() : 
-						loops(1000),
-						sucessRead(6),
+						loops(5000),
 						baudRates({{300, B300},
 									{600, B600},
 									{1200, B1200},
@@ -45,9 +42,7 @@ class serialCom
 									{19200, B19200},
 									{38400, B38400},
 									{57600, B57600},
-									{115200, B115200}}){
-										printf("HOLA: %d\n",sucessRead);
-									}
+									{115200, B115200}}){}
 
 		bool init(int speedIn = 115200, 
 			std::string port = "/dev/ttyUSB0",
@@ -171,7 +166,7 @@ class serialCom
 		//! This method is specific for arduino connection. Waiting to boot.
 		/*!
 		\param loop loops to read.
-		\param sucessRead Threshold .
+		\param imgValid length of the read string to be alid image.
 		\return True if read succeeds		
 		*/	
 		bool waitConnection(){
@@ -181,7 +176,7 @@ class serialCom
 			for (int n = 0; n < loops; n++){
 				reads = readLine(buff);
 				tcflush(fd, TCIFLUSH);
-				if (reads > imgValid) {
+				if (reads > 0 && static_cast<int>(strlen(buff)) >= imgValid) {
 					strcpy(currentImg, buff); // Store first image received
 					return true;
 				}
