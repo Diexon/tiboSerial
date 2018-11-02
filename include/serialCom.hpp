@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <map>
+#include <unordered_set>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
@@ -13,11 +14,11 @@ class serialCom
 	private:
 
 		// Arduino booting parameters
-		const int loops;
+		static const int waitConnectionLoops;
 		// Serial connection parameters
 		static int fd;
 		static const int maxLineSize;
-		const std::map<int, int> baudRates;
+		static const std::map<int, int> baudRates;
 		
 		// Serial control		
 		static bool serialActive;
@@ -26,25 +27,51 @@ class serialCom
 		static const char* stopMsg;
 		static char currentImg[];
 
+		//! This method is specific for arduino connection. Waiting to boot.
+		/*!
+		\param waitConnectionLoops loops to read.
+		\param imgValid length of the read string to be alid image.
+		\return True if read succeeds		
+		*/	
+		static bool waitConnection(){
+			int reads = 0;
+			char buff[STRING_SIZE];
+			printf("Waiting serial to boot...\n");
+			for (int n = 0; n < waitConnectionLoops; n++){
+				reads = readLine(buff);
+				tcflush(fd, TCIFLUSH);
+				if (reads > 0 && static_cast<int>(strlen(buff)) >= imgValid) {
+					strcpy(currentImg, buff); // Store first image received
+					return true;
+				}
+			}
+			return false;
+		}
+		//! Read one line present in the serial bus
+		/*!
+		\param buf Buffer to fill with serial line
+		\return Read size of the string	
+		*/	
+		static int readLine(char* buf){
+			int stat = read (fd, buf, maxLineSize);
+			tcflush(fd, TCIFLUSH);
+			if (stat < imgValid) {
+    			/* No content or content not valid */
+				return 0;
+ 			}
+			else{
+				buf[stat - 1] = '\0'; //erase the new line
+			}
+			return stat;
+		}
+
 	public:
 
+		static std::unordered_set<std::string> imagesToDisplay;
 		static bool changeImg;		
 		static bool stopSerial;				
 
-		serialCom() : 
-						loops(5000),
-						baudRates({{300, B300},
-									{600, B600},
-									{1200, B1200},
-									{2400, B2400},
-									{4800, B4800},
-									{9600, B9600},
-									{19200, B19200},
-									{38400, B38400},
-									{57600, B57600},
-									{115200, B115200}}){}
-
-		bool init(int speedIn = 115200, 
+		static bool init(int speedIn = 115200, 
 			std::string port = "/dev/ttyUSB0",
 			cc_t block = 0,
 			cc_t timeout = 1
@@ -147,69 +174,55 @@ class serialCom
 				changeImg = true;
 				stopSerial = true;
 				emptyReadCnt = 0;
+				printf("Received stop signal from serial.\n");
 			}
 			else{
-				strcpy(currentImg, nextImg);
+				if(imagesToDisplay.find(nextImg) != imagesToDisplay.end()){
+					strcpy(currentImg, nextImg);
+					changeImg = true;
+					stopSerial = false;
+					emptyReadCnt = 0;
+					printf("Received image change to: %s\n", currentImg);
+				}
+				else{
+					changeImg = false;
+					stopSerial = false;
+					emptyReadCnt = 0;
+					printf("Received %s not found in. Do not change.\n", currentImg);
+				}
 			}
+			return;
 			
 		}
 
-		std::string getImg(){
+		static std::string getImg(){
 			return std::string{currentImg}; 
 		}
 
-		bool getSerialActive(){
+		static bool getSerialActive(){
 			return serialActive;
 		}
 
-	private:
-		//! This method is specific for arduino connection. Waiting to boot.
-		/*!
-		\param loop loops to read.
-		\param imgValid length of the read string to be alid image.
-		\return True if read succeeds		
-		*/	
-		bool waitConnection(){
-			int reads = 0;
-			char buff[STRING_SIZE];
-			printf("Waiting serial to boot...\n");
-			for (int n = 0; n < loops; n++){
-				reads = readLine(buff);
-				tcflush(fd, TCIFLUSH);
-				if (reads > 0 && static_cast<int>(strlen(buff)) >= imgValid) {
-					strcpy(currentImg, buff); // Store first image received
-					return true;
-				}
-			}
-			return false;
-		}
-		//! Read one line present in the serial bus
-		/*!
-		\param buf Buffer to fill with serial line
-		\return Read size of the string	
-		*/	
-	public:
-		static int readLine(char* buf){
-			int stat = read (fd, buf, maxLineSize);
-			tcflush(fd, TCIFLUSH);
-			if (stat <= imgValid) {
-    			/* No content or content not valid */
-				return 0;
- 			}
-			else{
-				buf[stat - 1] = '\0'; //erase the new line
-			}
-			printf("***READ: %s\n",buf);
-			return stat;
-		}
 };
 
-const int serialCom::maxLineSize{4000};
+const int serialCom::maxLineSize{STRING_SIZE};
 const char* serialCom::stopMsg{"stop"};
 const int serialCom::imgValid{5};
 const int serialCom::emptyRead{5000};
+const int serialCom::waitConnectionLoops{5000};
+const std::map<int, int> serialCom:: baudRates{{300, B300},
+									{600, B600},
+									{1200, B1200},
+									{2400, B2400},
+									{4800, B4800},
+									{9600, B9600},
+									{19200, B19200},
+									{38400, B38400},
+									{57600, B57600},
+									{115200, B115200}};
 bool serialCom::serialActive{false};
 bool serialCom::changeImg{false};		
 bool serialCom::stopSerial{false};		
 char serialCom::currentImg[STRING_SIZE];
 int serialCom::fd{0};
+std::unordered_set<std::string> serialCom::imagesToDisplay;

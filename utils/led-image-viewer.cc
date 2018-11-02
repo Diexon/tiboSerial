@@ -263,48 +263,12 @@ int main(int argc, char *argv[]) {
     return usage(argv[0]);
   }
 
-  // Create serial control aobject
-  serialCom srCom;
-
   int vsync_multiple = 1;
   bool do_forever = false;
   bool do_center = false;
   bool do_shuffle = false;
   bool serail_control = false;
   
-  //TODO: remove debug
-//   if(!srCom.init(115200, "/dev/ttyUSB0"))
-//     {
-//       printf("Serial booted OK with Image: %s\n",srCom.getImg().c_str());
-//     }else{
-//       fprintf(stderr, "Not able to init serial\n");
-//       return 1;
-//     }
-//   for (int i = 1; i < 100; i++){
-//     char buf[100];
-//     int stat = srCom.readLine(buf);
-//     if (stat > 0){
-//       printf("SERIAL: %s Size: %d \n", buf, stat);
-//     }
-//     else{
-//       perror("No serial");
-//     }
-//     SleepMillis(5);
-//   }
-//   printf("********OTHER CYCLE********\n");
-//   SleepMillis(1000);
-//   for (int i = 1; i < 100; i++){
-//     char buf[100];
-//     int stat = srCom.readLine(buf);
-//     if (stat > 0){
-//       printf("SERIAL: %s Size: %d \n", buf, stat);
-//     }
-//     else{
-//       perror("No serial");
-//     }
-//     SleepMillis(5);
-//   }
-// return 0;
   // We remember ImageParams for each image, which will change whenever
   // there is a flag modifying them. This map keeps track of filenames
   // and their image params (also for unrelated elements of argv[], but doesn't
@@ -502,7 +466,7 @@ int main(int argc, char *argv[]) {
     // Done, no actual output to matrix.
     return 0;
   }
-
+  
   // Some parameter sanity adjustments.
   if (file_imgs.empty()) {
     // e.g. if all files could not be interpreted as image.
@@ -515,24 +479,26 @@ int main(int argc, char *argv[]) {
     printf("Images loaded\n");
     for (fileIt it = file_imgs.begin(); it!=file_imgs.end(); ++it) {
       printf("%s\n", it->first.c_str());
+      serialCom::imagesToDisplay.insert(it->first);
       ImageParams &params = it->second->params;
-      // Forever animation ? Set to loop only once, otherwise that animation
+      // Forever animation and not serial control? Set to loop only once, otherwise that animation
       // would just run forever, stopping all the images after it.
-      if (params.loops < 0 && params.anim_duration_ms == distant_future) {
+      if (params.loops < 0 && params.anim_duration_ms == distant_future && !serail_control) {
         params.loops = 1;
       }
     }
   }
 
+  // Create serial control aobject
   fprintf(stderr, "Loading took %.3fs; now: Display.\n",
           (GetTimeInMillis() - start_load) / 1000.0);
 
   // Init serial control
 
   if(serail_control){
-    if(!srCom.init(115200, "/dev/ttyUSB0"))
+    if(!serialCom::init(115200, "/dev/ttyUSB0"))
     {
-      printf("Serial booted OK with Image: %s\n",srCom.getImg().c_str());
+      printf("Serial booted OK with Image: %s\n",serialCom::getImg().c_str());
     }else{
       fprintf(stderr, "Not able to init serial\n");
       return 1;
@@ -543,15 +509,15 @@ int main(int argc, char *argv[]) {
   signal(SIGINT, InterruptHandler);
 
   do {
-    if (srCom.getSerialActive()){            
+    if (serialCom::getSerialActive()){            
       try {
-        printf("Displaying image: %s\n", srCom.getImg().c_str());
-        FileInfo * displayImage = file_imgs.at(srCom.getImg());        
+        printf("Displaying image: %s\n", serialCom::getImg().c_str());
+        FileInfo * displayImage = file_imgs.at(serialCom::getImg());        
         DisplayAnimation(displayImage, matrix, offscreen_canvas, vsync_multiple);
         serialCom::changeImg = false;
       } 
       catch (const std::exception& e) {
-        fprintf(stderr, "Not image in the list found.\n");
+        fprintf(stderr, "No image in the list found.\n");
         return 0;
       }
     }else{
